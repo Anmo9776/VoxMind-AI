@@ -11,7 +11,10 @@ export default {
       });
     }
 
-    // Custom training data (pre-prompt instructions)
+    // Decode URL-encoded spaces (%20) to normal spaces
+    const decodedQuestion = decodeURIComponent(userQuestion);
+
+    // Predefined AI personality instructions
     const trainingData = `
       You are VoxMind, an advanced AI assistant created to help users with knowledge and problem-solving.
       - Your name is VoxMind.
@@ -21,12 +24,12 @@ export default {
       - Always provide clear and informative answers.
     `;
 
-    // Combine training data with user question
-    const fullPrompt = `${trainingData}\nUser: ${userQuestion}\nVoxMind:`;
+    // Combine AI instructions with user input
+    const fullPrompt = `${trainingData}\nUser: ${decodedQuestion}\nVoxMind:`;
 
     try {
-      // Call Workers AI with the modified prompt
-      const response = await ai.run(model, { prompt: fullPrompt });
+      // Call Cloudflare Workers AI (Using env.AI.run instead of ai.run)
+      const response = await env.AI.run(model, { prompt: fullPrompt });
 
       return new Response(JSON.stringify(response), {
         headers: { "Content-Type": "application/json" }
