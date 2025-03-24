@@ -3,20 +3,39 @@ export default {
     try {
       const url = new URL(request.url);
       const userQuestion = url.searchParams.get("ques");
-      // Check if the prompt starts with "imaginev2"
-if (userPrompt && userPrompt.startsWith("imaginev2")) {
-    return fetch("https://raw.githubusercontent.com/Anmo9776/VoxMind-ai/main/image_worker.js");
-}
-      const model = url.searchParams.get("model");
+      const model = url.searchParams.get("model") || "llama-3.1-8b-instant";
 
       if (!userQuestion) {
-        return new Response("Usage: /?ques=YourQuestion&model=MODEL_NAME", {
+        return new Response("Usage: /?ques=YourQuestion OR /?ques=imaginev2 YourImagePrompt", {
           status: 400,
           headers: { "content-type": "text/plain" },
         });
       }
 
-      // Decode URL-encoded spaces
+      // ✅ Handle Image Generation Requests (Stable Diffusion API)
+      if (userQuestion.startsWith("imaginev2")) {
+        const imagePrompt = userQuestion.replace("imaginev2", "").trim();
+
+        // Call the Stable Diffusion API
+        const apiUrl = "https://stablediffusionapi.com/api/v3/text2img";
+        const imageResponse = await fetch(apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: imagePrompt })
+        });
+
+        const imageResult = await imageResponse.json();
+
+        if (imageResult.output && imageResult.output[0]) {
+          return new Response(JSON.stringify({ image_url: imageResult.output[0] }), {
+            headers: { "Content-Type": "application/json" },
+          });
+        } else {
+          return new Response(JSON.stringify({ error: "Image generation failed." }), { status: 500 });
+        }
+      }
+
+      // ✅ Handle Normal AI Responses (Text AI)
       const decodedQuestion = decodeURIComponent(userQuestion);
 
       // Check if KV Namespace exists
@@ -43,27 +62,21 @@ if (userPrompt && userPrompt.startsWith("imaginev2")) {
       // Combine memory, training data, and user input
       const fullPrompt = `${trainingData}\n${memory.join("\n")}\nUser: ${decodedQuestion}\nVoxMind:`;
 
-      // Detect if it's an image request
-      const isImageRequest = userQuestion.toLowerCase().includes("generate image") || model === "stable-diffusion-xl";
-      const aiModel = isImageRequest ? "stable-diffusion-xl" : model || "llama-3.1-8b-instant";
-
-      // Call AI Module API for text or image
-      const aiResponse = await fetch(`https://ai-module.apis-bj-devs.workers.dev/?text=${encodeURIComponent(fullPrompt)}&model=${aiModel}`);
+      // Call AI Module API
+      const aiResponse = await fetch(`https://ai-module.apis-bj-devs.workers.dev/?text=${encodeURIComponent(fullPrompt)}&model=${model}`);
 
       if (!aiResponse.ok) {
         throw new Error(`AI API Error: ${aiResponse.statusText}`);
       }
 
-      const result = isImageRequest ? await aiResponse.blob() : await aiResponse.text();
+      const result = await aiResponse.text();
 
       // Save updated memory in KV (only for text responses)
-      if (!isImageRequest) {
-        memory.push(`VoxMind: ${result}`);
-        await env.KV_VOXMIND.put("memory", JSON.stringify(memory));
-      }
+      memory.push(`VoxMind: ${result}`);
+      await env.KV_VOXMIND.put("memory", JSON.stringify(memory));
 
-      return new Response(result, {
-        headers: { "Content-Type": isImageRequest ? "image/png" : "application/json" }
+      return new Response(JSON.stringify({ response: result }), {
+        headers: { "Content-Type": "application/json" }
       });
 
     } catch (error) {
