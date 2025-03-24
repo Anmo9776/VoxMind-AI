@@ -1,0 +1,9 @@
+name = "voxmind-ai"
+main = "index.js"
+account_id = "87d457528d5b9a5b86ff95f56f1e7ff2"
+compatibility_date = "2024-03-24"
+
+[env.production]
+kv_namespaces = [
+  { binding = "KV_VOXMIND", id = "22a09d88756244cdb7a3c18667ff67a2" }
+]
