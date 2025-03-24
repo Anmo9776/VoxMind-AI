@@ -3,6 +3,10 @@ export default {
     try {
       const url = new URL(request.url);
       const userQuestion = url.searchParams.get("ques");
+      // Check if the prompt starts with "imaginev2"
+if (userPrompt && userPrompt.startsWith("imaginev2")) {
+    return fetch("https://raw.githubusercontent.com/Anmo9776/VoxMind-ai/main/image_worker.js");
+}
       const model = url.searchParams.get("model");
 
       if (!userQuestion) {
