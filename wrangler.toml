@@ -1,6 +1,6 @@
 name = "voxmind-ai"
-type = "javascript"
-account_id = "YOUR_ACCOUNT_ID"
+main = "index.js"
+account_id = "87d457528d5b9a5b86ff95f56f1e7ff2"
 workers_dev = true
 compatibility_date = "2024-03-24"
 
