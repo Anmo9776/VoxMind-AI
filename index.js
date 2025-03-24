@@ -1,8 +1,8 @@
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const model = url.searchParams.get("model") || "@cf/meta/tiny-llama-1.1b";  // Uses Tiny Llama by default
     const userQuestion = url.searchParams.get("ques");
+    const model = url.searchParams.get("model") || "llama-3.1-8b-instant"; // Default model
 
     if (!userQuestion) {
       return new Response("Usage: /?ques=YourQuestion&model=MODEL_NAME", {
@@ -11,10 +11,18 @@ export default {
       });
     }
 
-    // Decode URL-encoded spaces (%20) to normal spaces
+    // Decode URL-encoded spaces
     const decodedQuestion = decodeURIComponent(userQuestion);
 
-    // Predefined AI personality instructions
+    // Fetch memory from KV (if available)
+    let memory = await env.KV_VOXMIND.get("memory");
+    memory = memory ? JSON.parse(memory) : [];
+
+    // Append new question to memory
+    memory.push(`User: ${decodedQuestion}`);
+    if (memory.length > 5) memory.shift(); // Keep only recent 5 messages
+
+    // Predefined AI training data
     const trainingData = `
       You are VoxMind, an advanced AI assistant created to help users with knowledge and problem-solving.
       - Your name is VoxMind.
@@ -24,20 +32,26 @@ export default {
       - Always provide clear and informative answers.
     `;
 
-    // Combine AI instructions with user input
-    const fullPrompt = `${trainingData}\nUser: ${decodedQuestion}\nVoxMind:`;
+    // Combine memory, training data, and user input
+    const fullPrompt = `${trainingData}\n${memory.join("\n")}\nUser: ${decodedQuestion}\nVoxMind:`;
 
     try {
-      // Call Cloudflare Workers AI using the correct binding
-      const response = await env.AI.run(model, { prompt: fullPrompt });
+      // Call AI Module API
+      const aiResponse = await fetch(`https://ai-module.apis-bj-devs.workers.dev/?text=${encodeURIComponent(fullPrompt)}&model=${model}`);
+      const result = await aiResponse.text();
 
-      return new Response(JSON.stringify(response), {
-        headers: { "Content-Type": "application/json" }
+      // Save updated memory in KV
+      memory.push(`VoxMind: ${result}`);
+      await env.KV_VOXMIND.put("memory", JSON.stringify(memory));
+
+      return new Response(JSON.stringify({ response: result }), {
+        headers: { "Content-Type": "application/json" },
       });
+
     } catch (error) {
       return new Response(JSON.stringify({ error: error.message }), {
         status: 500,
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
       });
     }
   }
