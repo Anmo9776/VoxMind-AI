@@ -12,12 +12,12 @@ export default {
         });
       }
 
-      // ✅ Handle Image Generation Requests (DeepAI Free API)
+      // ✅ Handle Image Generation Requests (New API)
       if (userQuestion.startsWith("imaginev2")) {
         const imagePrompt = userQuestion.replace("imaginev2", "").trim();
 
-        // Call DeepAI's public Stable Diffusion API
-        const apiUrl = "https://api.deepai.org/api/text2img";
+        // Call a working public Stable Diffusion API
+        const apiUrl = "https://stablediffusion.fr/api/v3/text2img"; // No API key required
         const imageResponse = await fetch(apiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -26,8 +26,8 @@ export default {
 
         const imageResult = await imageResponse.json();
 
-        if (imageResult.output_url) {
-          return new Response(JSON.stringify({ image_url: imageResult.output_url }), {
+        if (imageResult.images && imageResult.images.length > 0) {
+          return new Response(JSON.stringify({ image_url: imageResult.images[0] }), {
             headers: { "Content-Type": "application/json" },
           });
         } else {
