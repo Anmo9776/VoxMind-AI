@@ -12,27 +12,27 @@ export default {
         });
       }
 
-      // ✅ Handle Image Generation Requests (New API)
+      // ✅ Handle Image Generation Requests (Hugging Face API)
       if (userQuestion.startsWith("imaginev2")) {
         const imagePrompt = userQuestion.replace("imaginev2", "").trim();
 
-        // Call a working public Stable Diffusion API
-        const apiUrl = "https://stablediffusion.fr/api/v3/text2img"; // No API key required
+        // Call Hugging Face Stable Diffusion API
+        const apiUrl = "https://api-inference.huggingface.co/models/CompVis/stable-diffusion-v1-4";
         const imageResponse = await fetch(apiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: imagePrompt })
+          body: JSON.stringify({ inputs: imagePrompt })
         });
 
-        const imageResult = await imageResponse.json();
-
-        if (imageResult.images && imageResult.images.length > 0) {
-          return new Response(JSON.stringify({ image_url: imageResult.images[0] }), {
-            headers: { "Content-Type": "application/json" },
-          });
-        } else {
-          return new Response(JSON.stringify({ error: "Image generation failed." }), { status: 500 });
+        if (!imageResponse.ok) {
+          throw new Error(`Image API Error: ${imageResponse.statusText}`);
         }
+
+        const imageBlob = await imageResponse.blob();
+
+        return new Response(imageBlob, {
+          headers: { "Content-Type": "image/png" },
+        });
       }
 
       // ✅ Handle Normal AI Responses (Text AI)
