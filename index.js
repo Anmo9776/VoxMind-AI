@@ -28,7 +28,7 @@ export default {
     const fullPrompt = `${trainingData}\nUser: ${decodedQuestion}\nVoxMind:`;
 
     try {
-      // Call Cloudflare Workers AI with optimized model
+      // Call Cloudflare Workers AI using the correct binding
       const response = await env.AI.run(model, { prompt: fullPrompt });
 
       return new Response(JSON.stringify(response), {
