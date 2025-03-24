@@ -3,7 +3,7 @@ export default {
     try {
       const url = new URL(request.url);
       const userQuestion = url.searchParams.get("ques");
-      const model = url.searchParams.get("model") || "llama-3.1-8b-instant";
+      const model = url.searchParams.get("model");
 
       if (!userQuestion) {
         return new Response("Usage: /?ques=YourQuestion&model=MODEL_NAME", {
@@ -39,20 +39,27 @@ export default {
       // Combine memory, training data, and user input
       const fullPrompt = `${trainingData}\n${memory.join("\n")}\nUser: ${decodedQuestion}\nVoxMind:`;
 
-      // Call AI Module API
-      const aiResponse = await fetch(`https://ai-module.apis-bj-devs.workers.dev/?text=${encodeURIComponent(fullPrompt)}&model=${model}`);
+      // Detect if it's an image request
+      const isImageRequest = userQuestion.toLowerCase().includes("generate image") || model === "stable-diffusion-xl";
+      const aiModel = isImageRequest ? "stable-diffusion-xl" : model || "llama-3.1-8b-instant";
+
+      // Call AI Module API for text or image
+      const aiResponse = await fetch(`https://ai-module.apis-bj-devs.workers.dev/?text=${encodeURIComponent(fullPrompt)}&model=${aiModel}`);
 
       if (!aiResponse.ok) {
         throw new Error(`AI API Error: ${aiResponse.statusText}`);
       }
 
-      const result = await aiResponse.text();
+      const result = isImageRequest ? await aiResponse.blob() : await aiResponse.text();
 
-      // Save updated memory in KV
-      await env.KV_VOXMIND.put("memory", JSON.stringify(memory));
+      // Save updated memory in KV (only for text responses)
+      if (!isImageRequest) {
+        memory.push(`VoxMind: ${result}`);
+        await env.KV_VOXMIND.put("memory", JSON.stringify(memory));
+      }
 
-      return new Response(JSON.stringify({ response: result }), {
-        headers: { "Content-Type": "application/json" },
+      return new Response(result, {
+        headers: { "Content-Type": isImageRequest ? "image/png" : "application/json" }
       });
 
     } catch (error) {
