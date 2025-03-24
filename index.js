@@ -1,7 +1,7 @@
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const model = url.searchParams.get("model") || "@cf/meta/llama-3-8b-instruct";  
+    const model = url.searchParams.get("model") || "@cf/meta/tiny-llama-1.1b";  // Uses Tiny Llama by default
     const userQuestion = url.searchParams.get("ques");
 
     if (!userQuestion) {
@@ -28,7 +28,7 @@ export default {
     const fullPrompt = `${trainingData}\nUser: ${decodedQuestion}\nVoxMind:`;
 
     try {
-      // Call Cloudflare Workers AI (Using env.AI.run instead of ai.run)
+      // Call Cloudflare Workers AI with optimized model
       const response = await env.AI.run(model, { prompt: fullPrompt });
 
       return new Response(JSON.stringify(response), {
